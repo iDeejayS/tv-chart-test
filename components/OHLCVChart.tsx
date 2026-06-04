@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+} from "react";
 import {
   createChart,
   CrosshairMode,
@@ -12,11 +18,21 @@ import {
 } from "lightweight-charts";
 import { OHLCVCandle } from "@/lib/api";
 
+export interface OHLCVChartRef {
+  zoomIn: () => void;
+  zoomOut: () => void;
+  scrollLeft: () => void;
+  scrollRight: () => void;
+  resetView: () => void;
+}
+
 interface Props {
   candles: OHLCVCandle[];
   timeframe: string;
   loading: boolean;
   chartHeight?: number;
+  onRefresh?: () => void;
+  timezone: string | number;
 }
 
 const SHORT_TF = new Set(["1s", "1m", "2m", "3m", "5m"]);
@@ -40,17 +56,52 @@ function fmtNum(n: number): string {
   return Number(n).toFixed(2);
 }
 
-export default function OHLCVChart({
-  candles,
-  timeframe,
-  loading,
-  chartHeight,
-}: Props) {
+const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
+  { candles, timeframe, loading, chartHeight, onRefresh, timezone },
+  ref,
+) {
   const priceRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const priceChartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const isInitialSetRef = useRef(false);
+
+  // Expose imperative handle APIs to parent ref
+  useImperativeHandle(ref, () => ({
+    zoomIn: () => handleZoom(true),
+    zoomOut: () => handleZoom(false),
+    scrollLeft: () => handleScroll(-5),
+    scrollRight: () => handleScroll(5),
+    resetView: () => {
+      isInitialSetRef.current = false;
+    },
+  }));
+
+  // Helper to handle zooming
+  const handleZoom = (zoomIn: boolean) => {
+    const timeScale = priceChartRef.current?.timeScale();
+    if (timeScale) {
+      const currentSpacing = timeScale.options().barSpacing;
+      const factor = zoomIn ? 1.25 : 1 / 1.25;
+      timeScale.applyOptions({
+        barSpacing: Math.max(0.5, Math.min(100, currentSpacing * factor)),
+      });
+    }
+  };
+
+  // Helper to handle panning / scrolling
+  const handleScroll = (barCount: number) => {
+    const timeScale = priceChartRef.current?.timeScale();
+    if (timeScale) {
+      const range = timeScale.getVisibleLogicalRange();
+      if (range) {
+        timeScale.setVisibleLogicalRange({
+          from: range.from + barCount,
+          to: range.to + barCount,
+        });
+      }
+    }
+  };
 
   // Automatically resize the chart whenever container dimensions change (vertically or horizontally)
   useEffect(() => {
@@ -85,6 +136,8 @@ export default function OHLCVChart({
     const initialWidth = priceRef.current.clientWidth || 800;
     const initialHeight = chartHeight || 400;
 
+    isInitialSetRef.current = false; // Reset to refresh chart data completely on timezone/TF toggling
+
     priceChartRef.current = createChart(priceRef.current, {
       width: initialWidth,
       height: initialHeight,
@@ -99,11 +152,73 @@ export default function OHLCVChart({
         scaleMargins: { top: 0.08, bottom: 0.08 },
         visible: true,
       },
+      localization: {
+        timeFormatter: (time: number) => {
+          const date = new Date(time * 1000);
+          if (timezone === "local") {
+            const pad = (n: number) => n.toString().padStart(2, "0");
+            const hours = pad(date.getHours());
+            const mins = pad(date.getMinutes());
+            const month = pad(date.getMonth() + 1);
+            const day = pad(date.getDate());
+            return `${date.getFullYear()}-${month}-${day} ${hours}:${mins}`;
+          } else {
+            const offsetHours = Number(timezone);
+            const shiftedDate = new Date((time + offsetHours * 3600) * 1000);
+            const pad = (n: number) => n.toString().padStart(2, "0");
+            const hours = pad(shiftedDate.getUTCHours());
+            const mins = pad(shiftedDate.getUTCMinutes());
+            const month = pad(shiftedDate.getUTCMonth() + 1);
+            const day = pad(shiftedDate.getUTCDate());
+            return `${shiftedDate.getUTCFullYear()}-${month}-${day} ${hours}:${mins}`;
+          }
+        },
+      },
       timeScale: {
         borderColor: "#4a5260", // brighter, clearly visible x-axis border line
         timeVisible: true,
         secondsVisible: SHORT_TF.has(timeframe),
         visible: true,
+        tickMarkFormatter: (time: number, tickMarkType: number) => {
+          const date = new Date(time * 1000);
+          if (timezone === "local") {
+            const pad = (n: number) => n.toString().padStart(2, "0");
+            const hours = pad(date.getHours());
+            const mins = pad(date.getMinutes());
+            const month = pad(date.getMonth() + 1);
+            const day = pad(date.getDate());
+
+            if (tickMarkType === 0) {
+              return date.getFullYear().toString();
+            } else if (tickMarkType === 1) {
+              return `${date.getFullYear()}-${month}`;
+            } else if (tickMarkType === 2) {
+              return `${month}-${day}`;
+            } else {
+              return `${hours}:${mins}`;
+            }
+          } else {
+            // Apply numerical offset (e.g. UTC+1, UTC+5:30)
+            const offsetHours = Number(timezone);
+            const shiftedDate = new Date((time + offsetHours * 3600) * 1000);
+
+            const pad = (n: number) => n.toString().padStart(2, "0");
+            const hours = pad(shiftedDate.getUTCHours());
+            const mins = pad(shiftedDate.getUTCMinutes());
+            const month = pad(shiftedDate.getUTCMonth() + 1);
+            const day = pad(shiftedDate.getUTCDate());
+
+            if (tickMarkType === 0) {
+              return shiftedDate.getUTCFullYear().toString();
+            } else if (tickMarkType === 1) {
+              return `${shiftedDate.getUTCFullYear()}-${month}`;
+            } else if (tickMarkType === 2) {
+              return `${month}-${day}`;
+            } else {
+              return `${hours}:${mins}`;
+            }
+          }
+        },
       },
       handleScroll: true,
       handleScale: true,
@@ -132,7 +247,25 @@ export default function OHLCVChart({
       }
       const color = c.close >= c.open ? "#0ecb81" : "#f6465d";
       tooltip.style.display = "block";
+
+      const date = new Date((param.time as number) * 1000);
+
+      if (timezone === "local") {
+      } else {
+        const offsetHours = Number(timezone);
+        const shiftedDate = new Date(
+          ((param.time as number) + offsetHours * 3600) * 1000,
+        );
+        const pad = (n: number) => n.toString().padStart(2, "0");
+        const hours = pad(shiftedDate.getUTCHours());
+        const mins = pad(shiftedDate.getUTCMinutes());
+        const secs = pad(shiftedDate.getUTCSeconds());
+        const month = pad(shiftedDate.getUTCMonth() + 1);
+        const day = pad(shiftedDate.getUTCDate());
+      }
+
       tooltip.innerHTML = `
+        
         <span style="color:${color};font-weight:600">
           O ${fmtPrice(c.open)} &nbsp; H ${fmtPrice(c.high)} &nbsp; L ${fmtPrice(c.low)} &nbsp; C ${fmtPrice(c.close)}
         </span>
@@ -142,7 +275,7 @@ export default function OHLCVChart({
     return () => {
       priceChartRef.current?.remove();
     };
-  }, []);
+  }, [timeframe, timezone]);
 
   useEffect(() => {
     if (!candleSeriesRef.current) return;
@@ -189,7 +322,7 @@ export default function OHLCVChart({
         });
       }
     }
-  }, [candles, timeframe]);
+  }, [candles, timeframe, timezone]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -198,6 +331,7 @@ export default function OHLCVChart({
           <div className="spinner" />
         </div>
       )}
+
       <div
         ref={tooltipRef}
         className="absolute top-2 left-2 z-10 bg-[rgba(18,22,26,0.92)] border border-[#2a2e39] rounded-md px-2.5 py-1.5 text-[11px] pointer-events-none hidden leading-relaxed"
@@ -205,4 +339,6 @@ export default function OHLCVChart({
       <div ref={priceRef} className="flex-1 w-full h-full min-w-0" />
     </div>
   );
-}
+});
+
+export default OHLCVChart;

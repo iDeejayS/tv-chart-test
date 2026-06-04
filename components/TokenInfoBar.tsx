@@ -143,7 +143,6 @@ export default function TokenInfoBar({
           Price USD
         </div>
         <div className="text-sm">
-          {" "}
           {renderCryptoPrice(price * (solPrice || 1), false)}
         </div>
       </div>

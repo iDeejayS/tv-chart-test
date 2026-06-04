@@ -2,16 +2,12 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import { useTokens } from "@/hooks/useTokens";
 import { useOHLCV } from "@/hooks/useOHLCV";
 import TokenList from "@/components/TokenList";
 import TokenInfoBar from "@/components/TokenInfoBar";
 import TradeHistory from "@/components/TradeHistory";
-
-const OHLCVChart = dynamic(() => import("@/components/OHLCVChart"), {
-  ssr: false,
-});
+import OHLCVChart, { type OHLCVChartRef } from "@/components/OHLCVChart";
 
 const TIMEFRAMES = [
   "1s",
@@ -37,6 +33,14 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [displayQuery, setDisplayQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(!urlMint);
+  const [timezone, setTimezone] = useState<string | number>("local");
+  const chartRef = useRef<OHLCVChartRef>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   const {
@@ -54,6 +58,7 @@ export default function DashboardPage() {
     candles,
     solPrice,
     loading: chartLoading,
+    reload: reloadOHLCV,
   } = useOHLCV(
     activeToken?.is_graduated ? activeMint : null,
     activeTimeframe,
@@ -133,6 +138,13 @@ export default function DashboardPage() {
     }
   }, [searchQuery, search]);
 
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setDisplayQuery("");
+    clearTimeout(searchTimeout.current);
+    search("");
+  };
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Top Bar */}
@@ -168,12 +180,33 @@ export default function DashboardPage() {
                   placeholder="Search or paste mint…"
                   onChange={handleSearchInput}
                   onKeyDown={(e) => e.key === "Enter" && handleSearchSubmit()}
-                  className="w-full bg-[#1e2329] border border-[#2a2e39] rounded px-3 py-1.5 pr-8 text-sm text-[#d1d4dc] outline-none focus:border-[#0ecb81]"
+                  className="w-full bg-[#1e2329] border border-[#2a2e39] rounded px-3 py-1.5 pr-14 text-sm text-[#d1d4dc] outline-none focus:border-[#0ecb81]"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={handleClearSearch}
+                    title="Clear Search"
+                    className="absolute right-8 top-1/2 -translate-y-1/2 text-[#5e6673] hover:text-[#f6465d] bg-none border-none cursor-pointer flex items-center justify-center p-1"
+                  >
+                    <svg
+                      className="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                )}
                 <button
                   onClick={handleSearchSubmit}
                   title="Search in DB"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#5e6673] hover:text-[#0ecb81] bg-none border-none cursor-pointer flex items-center justify-center"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#5e6673] hover:text-[#0ecb81] bg-none border-none cursor-pointer flex items-center justify-center p-1"
                 >
                   <svg
                     className="w-4 h-4"
@@ -232,7 +265,7 @@ export default function DashboardPage() {
         {sidebarOpen && (
           <div
             onClick={() => setSidebarOpen(false)}
-            className="w-1.5 bg-[#12161a] border-r border-l border-[#2a2e39] flex items-center justify-center cursor-pointer hover:bg-[#0ecb81]/15 active:bg-[#0ecb81]/30 transition-all group shrink-0 relative"
+            className="w-1.5 bg-[#12161a] border-r border-l border-[#2a2e39] flex items-center justify-center   cursor-pointer hover:bg-[#0ecb81]/15 active:bg-[#0ecb81]/30 transition-all group shrink-0 relative"
             title="Click to Collapse Token List"
           >
             {/* Centered vertical grab indicator dots */}
@@ -242,7 +275,7 @@ export default function DashboardPage() {
               <div className="w-1 h-1 bg-[#848e9c] rounded-full" />
             </div>
             {/* Center collapsing arrow floating tab */}
-            <div className="absolute top-1/2 -translate-y-1/2 bg-[#12161a] border border-[#2a2e39] group-hover:border-[#0ecb81] w-4 h-8 rounded-r flex items-center justify-center -right-[11px] shadow-sm z-10 transition-colors pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 bg-[#12161a] border border-[#2a2e39] group-hover:border-[#0ecb81] w-5 h-20 rounded flex items-center justify-center shadow-md z-10 transition-colors pointer-events-none">
               <svg
                 className="w-3 h-3 text-[#848e9c] group-hover:text-[#0ecb81] transition-colors"
                 fill="none"
@@ -266,7 +299,7 @@ export default function DashboardPage() {
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-30 bg-[#12161a] border border-l-0 border-[#2a2e39] hover:border-[#0ecb81] text-[#848e9c] hover:text-[#0ecb81] w-4.5 h-12 rounded-r flex items-center justify-center transition-all shadow-md group shrink-0"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-30 bg-[#12161a] border border-l-0 border-[#2a2e39] hover:border-[#0ecb81] text-[#848e9c] hover:text-[#0ecb81] w-8 h-20 rounded-r flex items-center justify-center transition-all shadow-md group shrink-0"
               title="Expand Token List"
             >
               <svg
@@ -305,6 +338,139 @@ export default function DashboardPage() {
                 </button>
               ))}
             </div>
+
+            {/* Timezone and Navigation Controls */}
+            <div className="flex items-center gap-1.5 border-l border-[#2a2e39] pl-2 mr-1.5">
+              <select
+                value={timezone}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTimezone(val === "local" ? "local" : Number(val));
+                }}
+                className="bg-[#1e2329] text-[#848e9c] hover:text-[#d1d4dc] text-[10px] font-bold rounded px-1.5 py-0.5 outline-none border border-[#2a2e39] cursor-pointer"
+                title="Select Chart Timezone"
+              >
+                <option value="local">LOCAL</option>
+                <option value="0">UTC</option>
+                <option value="1">UTC+1</option>
+                <option value="2">UTC+2</option>
+                <option value="3">UTC+3</option>
+                <option value="5.5">UTC+5:30</option>
+                <option value="8">UTC+8</option>
+                <option value="9">UTC+9</option>
+                <option value="-5">UTC-5</option>
+                <option value="-8">UTC-8</option>
+              </select>
+
+              {/* Move Prev */}
+              <button
+                onClick={() => chartRef.current?.scrollLeft()}
+                className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329]"
+                title="Move Backward (Left)"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 19.5L8.25 12l7.5-7.5"
+                  />
+                </svg>
+              </button>
+
+              {/* Move Next */}
+              <button
+                onClick={() => chartRef.current?.scrollRight()}
+                className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329]"
+                title="Move Forward (Right)"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                  />
+                </svg>
+              </button>
+
+              {/* Zoom In */}
+              <button
+                onClick={() => chartRef.current?.zoomIn()}
+                className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329]"
+                title="Zoom In"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 4.5v15m7.5-7.5h-15"
+                  />
+                </svg>
+              </button>
+
+              {/* Zoom Out */}
+              <button
+                onClick={() => chartRef.current?.zoomOut()}
+                className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329]"
+                title="Zoom Out"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.5 12h-15"
+                  />
+                </svg>
+              </button>
+
+              {/* Reset / Refresh */}
+              <button
+                onClick={() => {
+                  chartRef.current?.resetView();
+                  reloadOHLCV();
+                }}
+                className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329] flex items-center justify-center"
+                title="Refresh Chart Data & Reset Zoom"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                  />
+                </svg>
+              </button>
+            </div>
+
             <div className="flex gap-1 ml-2 border-l border-[#2a2e39] pl-2">
               <button
                 onClick={() => setActiveSource("pg")}
@@ -347,11 +513,14 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <OHLCVChart
+                    ref={chartRef}
                     key={`${activeMint}_${activeTimeframe}_${activeSource}`}
                     candles={candles}
                     timeframe={activeTimeframe}
                     loading={chartLoading}
                     chartHeight={chartHeight}
+                    onRefresh={reloadOHLCV}
+                    timezone={timezone}
                   />
                 )}
               </div>
