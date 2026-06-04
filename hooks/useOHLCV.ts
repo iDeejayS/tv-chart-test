@@ -13,6 +13,8 @@ export function useOHLCV(
   const [solPrice, setSolPrice] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isJoined, setIsJoined] = useState(false);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const prevMintRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
@@ -66,6 +68,25 @@ export function useOHLCV(
     joinCoinRoom(mint);
 
     const sio = getSocketIo();
+    setIsSocketConnected(sio.connected);
+
+    const handleConnect = () => {
+      setIsSocketConnected(true);
+    };
+
+    const handleDisconnect = () => {
+      setIsSocketConnected(false);
+      setIsJoined(false);
+    };
+
+    const handleJoinedRoom = (data: any) => {
+      if (data?.coinAddress?.toLowerCase() === mint?.toLowerCase()) {
+        console.log(
+          `[Socket.IO Client] ✅ Successfully joined room for mint: ${mint}`,
+        );
+        setIsJoined(true);
+      }
+    };
 
     const handleTradeUpdated = (data: any) => {
       try {
@@ -109,10 +130,18 @@ export function useOHLCV(
       } catch {}
     };
 
+    sio.on("connect", handleConnect);
+    sio.on("disconnect", handleDisconnect);
+    sio.on("joined_coin_room", handleJoinedRoom);
     sio.on("TradeUpdated", handleTradeUpdated);
 
     return () => {
+      sio.off("connect", handleConnect);
+      sio.off("disconnect", handleDisconnect);
+      sio.off("joined_coin_room", handleJoinedRoom);
       sio.off("TradeUpdated", handleTradeUpdated);
+      setIsJoined(false);
+      setIsSocketConnected(false);
       if (prevMintRef.current) {
         leaveCoinRoom(prevMintRef.current);
         prevMintRef.current = null;
@@ -120,7 +149,15 @@ export function useOHLCV(
     };
   }, [mint, timeframe]);
 
-  return { candles, solPrice, loading, error, reload: load };
+  return {
+    candles,
+    solPrice,
+    loading,
+    error,
+    isJoined,
+    isSocketConnected,
+    reload: load,
+  };
 }
 
 function timeframeToSeconds(tf: string): number {

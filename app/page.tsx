@@ -59,6 +59,7 @@ export default function DashboardPage() {
     solPrice,
     loading: chartLoading,
     reload: reloadOHLCV,
+    isSocketConnected,
   } = useOHLCV(
     activeToken?.is_graduated ? activeMint : null,
     activeTimeframe,
@@ -322,6 +323,7 @@ export default function DashboardPage() {
             token={activeToken}
             candles={candles}
             solPrice={solPrice}
+            isSocketConnected={isSocketConnected}
           />
 
           {/* Timeframe + Source */}

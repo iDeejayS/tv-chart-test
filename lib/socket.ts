@@ -4,13 +4,14 @@ const SOCKET_IO_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 let socketIoInstance: Socket | null = null;
+let activeMint: string | null = null;
 
 export function getSocketIo(): Socket {
   if (!socketIoInstance) {
     console.log(
       `[Socket.IO Client] Initializing connection to: ${SOCKET_IO_URL}`,
     );
-    socketIoInstance = io(SOCKET_IO_URL, {
+    const socket = io(SOCKET_IO_URL, {
       path: "/socket.io",
       transports: ["polling", "websocket"], // Allow fallback polling to bypass strict websocket blocks
       autoConnect: true,
@@ -19,17 +20,26 @@ export function getSocketIo(): Socket {
       reconnectionAttempts: Infinity,
     });
 
-    socketIoInstance.on("connect", () => {
+    socketIoInstance = socket;
+
+    socket.on("connect", () => {
       console.log(
-        `[Socket.IO Client] ✅ Connected successfully! ID: ${socketIoInstance?.id}`,
+        `[Socket.IO Client] ✅ Connected successfully! ID: ${socket.id}`,
       );
+      // Automatically re-register the active coin room with the backend upon connection or reconnection
+      if (activeMint) {
+        console.log(
+          `[Socket.IO Client] 🔄 Re-registering active coin room on connect: ${activeMint}`,
+        );
+        socket.emit("join_coin_room", activeMint);
+      }
     });
 
-    socketIoInstance.on("connect_error", (err) => {
+    socket.on("connect_error", (err) => {
       console.error(`[Socket.IO Client] ❌ Connection error:`, err.message);
     });
 
-    socketIoInstance.on("disconnect", (reason) => {
+    socket.on("disconnect", (reason) => {
       console.warn(`[Socket.IO Client] ⚠️ Disconnected. Reason:`, reason);
     });
   }
@@ -38,6 +48,7 @@ export function getSocketIo(): Socket {
 
 export function joinCoinRoom(mint: string) {
   if (!mint) return;
+  activeMint = mint;
   const socket = getSocketIo();
 
   const performJoin = () => {
@@ -59,6 +70,9 @@ export function joinCoinRoom(mint: string) {
 
 export function leaveCoinRoom(mint: string) {
   if (!mint) return;
+  if (activeMint === mint) {
+    activeMint = null;
+  }
   const socket = getSocketIo();
   console.log(
     `[Socket.IO Client] 🔴 Emitting 'leave_coin_room' for mint: ${mint}`,

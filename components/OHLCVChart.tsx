@@ -159,18 +159,24 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
             const pad = (n: number) => n.toString().padStart(2, "0");
             const hours = pad(date.getHours());
             const mins = pad(date.getMinutes());
+            const secs = pad(date.getSeconds());
             const month = pad(date.getMonth() + 1);
             const day = pad(date.getDate());
-            return `${date.getFullYear()}-${month}-${day} ${hours}:${mins}`;
+            return timeframe === "1s"
+              ? `${date.getFullYear()}-${month}-${day} ${hours}:${mins}:${secs}`
+              : `${date.getFullYear()}-${month}-${day} ${hours}:${mins}`;
           } else {
             const offsetHours = Number(timezone);
             const shiftedDate = new Date((time + offsetHours * 3600) * 1000);
             const pad = (n: number) => n.toString().padStart(2, "0");
             const hours = pad(shiftedDate.getUTCHours());
             const mins = pad(shiftedDate.getUTCMinutes());
+            const secs = pad(shiftedDate.getUTCSeconds());
             const month = pad(shiftedDate.getUTCMonth() + 1);
             const day = pad(shiftedDate.getUTCDate());
-            return `${shiftedDate.getUTCFullYear()}-${month}-${day} ${hours}:${mins}`;
+            return timeframe === "1s"
+              ? `${shiftedDate.getUTCFullYear()}-${month}-${day} ${hours}:${mins}:${secs}`
+              : `${shiftedDate.getUTCFullYear()}-${month}-${day} ${hours}:${mins}`;
           }
         },
       },
@@ -185,6 +191,7 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
             const pad = (n: number) => n.toString().padStart(2, "0");
             const hours = pad(date.getHours());
             const mins = pad(date.getMinutes());
+            const secs = pad(date.getSeconds());
             const month = pad(date.getMonth() + 1);
             const day = pad(date.getDate());
 
@@ -195,7 +202,9 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
             } else if (tickMarkType === 2) {
               return `${month}-${day}`;
             } else {
-              return `${hours}:${mins}`;
+              return timeframe === "1s"
+                ? `${hours}:${mins}:${secs}`
+                : `${hours}:${mins}`;
             }
           } else {
             // Apply numerical offset (e.g. UTC+1, UTC+5:30)
@@ -205,6 +214,7 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
             const pad = (n: number) => n.toString().padStart(2, "0");
             const hours = pad(shiftedDate.getUTCHours());
             const mins = pad(shiftedDate.getUTCMinutes());
+            const secs = pad(shiftedDate.getUTCSeconds());
             const month = pad(shiftedDate.getUTCMonth() + 1);
             const day = pad(shiftedDate.getUTCDate());
 
@@ -215,7 +225,9 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
             } else if (tickMarkType === 2) {
               return `${month}-${day}`;
             } else {
-              return `${hours}:${mins}`;
+              return timeframe === "1s"
+                ? `${hours}:${mins}:${secs}`
+                : `${hours}:${mins}`;
             }
           }
         },

@@ -8,6 +8,7 @@ interface Props {
   token: TokenInfo | null;
   candles: OHLCVCandle[];
   solPrice: number;
+  isSocketConnected?: boolean;
 }
 
 function fmtPrice(p: number): string {
@@ -79,6 +80,7 @@ export default function TokenInfoBar({
   token,
   candles,
   solPrice,
+  isSocketConnected = false,
 }: Props) {
   if (!mint) {
     return (
@@ -110,8 +112,18 @@ export default function TokenInfoBar({
   return (
     <div className="h-14 bg-[#12161a] border-b border-[#2a2e39] flex items-center px-4 gap-6 shrink-0">
       <div className="leading-tight">
-        <div className="font-semibold text-sm">
+        <div className="font-semibold text-sm flex items-center gap-1.5">
           {name} <span className="text-[#5e6673] font-normal">{symbol}</span>
+          <span
+            className={`inline-block w-2.5 h-2.5 rounded-full ${
+              isSocketConnected ? "bg-[#0ecb81] animate-pulse" : "bg-[#f6465d]"
+            }`}
+            title={
+              isSocketConnected
+                ? "Live trade updates connected"
+                : "Websocket disconnected. Reconnecting..."
+            }
+          />
         </div>
         <div className="text-[12px] text-[#5e6673] font-mono flex items-center gap-1">
           {mint.slice(0, 6)}…{mint.slice(-4)}
