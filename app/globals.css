@@ -84,3 +84,8 @@ input::placeholder {
     transform: rotate(360deg);
   }
 }
+
+/* Hide TradingView logo from lightweight-charts */
+.tv-lightweight-charts svg {
+  display: none !important;
+}

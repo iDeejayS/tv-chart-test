@@ -1,4 +1,13 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+
+function apiHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (API_KEY) {
+    headers["x-api-key"] = API_KEY;
+  }
+  return headers;
+}
 
 export interface TokenInfo {
   mint: string;
@@ -30,7 +39,12 @@ export async function fetchTokens(
   sort: string = "latest",
   limit: number = 50,
 ): Promise<TokenInfo[]> {
-  const res = await fetch(`${API_BASE}/api/tokens?sort=${sort}&limit=${limit}`);
+  const res = await fetch(
+    `${API_BASE}/api/tokens?sort=${sort}&limit=${limit}`,
+    {
+      headers: apiHeaders(),
+    },
+  );
   if (!res.ok) throw new Error("Failed to fetch tokens");
   return res.json();
 }
@@ -42,6 +56,7 @@ export async function searchTokens(
 ): Promise<TokenInfo[]> {
   const res = await fetch(
     `${API_BASE}/api/tokens?search=${encodeURIComponent(query)}&sort=${sort}&limit=${limit}`,
+    { headers: apiHeaders() },
   );
   if (!res.ok) throw new Error("Failed to search tokens");
   return res.json();
@@ -55,6 +70,7 @@ export async function fetchOHLCV(
 ): Promise<OHLCVResponse> {
   const res = await fetch(
     `${API_BASE}/api/tokens/${mint}/ohlcv?timeframe=${timeframe}&limit=${limit}&source=${source}`,
+    { headers: apiHeaders() },
   );
   if (!res.ok) throw new Error("Failed to fetch OHLCV");
   return res.json();
@@ -77,6 +93,7 @@ export async function fetchTrades(
 ): Promise<TradeInfo[]> {
   const res = await fetch(
     `${API_BASE}/api/tokens/${mint}/trades?limit=${limit}`,
+    { headers: apiHeaders() },
   );
   if (!res.ok) throw new Error("Failed to fetch trades");
   return res.json();

@@ -18,6 +18,9 @@ export function getSocketIo(): Socket {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: Infinity,
+      auth: {
+        apiKey: process.env.NEXT_PUBLIC_API_KEY,
+      },
     });
 
     socketIoInstance = socket;

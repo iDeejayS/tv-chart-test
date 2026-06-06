@@ -452,7 +452,6 @@ export default function DashboardPage() {
               <button
                 onClick={() => {
                   chartRef.current?.resetView();
-                  reloadOHLCV();
                 }}
                 className="p-1 text-[#848e9c] hover:text-[#0ecb81] transition-colors rounded hover:bg-[#1e2329] flex items-center justify-center"
                 title="Refresh Chart Data & Reset Zoom"

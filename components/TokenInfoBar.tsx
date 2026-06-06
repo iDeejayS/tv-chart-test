@@ -96,18 +96,18 @@ export default function TokenInfoBar({
   const supply = Number(token?.supply || 0);
 
   const last = candles.length ? candles[candles.length - 1] : null;
-  const first = candles.length ? candles[0] : null;
   const price = last?.close ?? 0;
-  const change = last && first ? last.close - first.open : 0;
-  const changePct = first?.open
-    ? ((change / first.open) * 100).toFixed(2)
-    : "0.00";
-  const changeColor = change >= 0 ? "#0ecb81" : "#f6465d";
-  const changeSign = change >= 0 ? "+" : "";
   const mcap = supply && price ? supply * price : 0;
-  const totalVolSol = candles.reduce((s, c) => s + c.volume_sol, 0);
-  const totalTrades = candles.reduce((s, c) => s + c.trades, 0);
-  const volUsd = totalVolSol * solPrice;
+  // const first = candles.length ? candles[0] : null;
+  // const change = last && first ? last.close - first.open : 0;
+  // const changePct = first?.open
+  //   ? ((change / first.open) * 100).toFixed(2)
+  //   : "0.00";
+  // const changeColor = change >= 0 ? "#0ecb81" : "#f6465d";
+  // const changeSign = change >= 0 ? "+" : "";
+  // const totalVolSol = candles.reduce((s, c) => s + c.volume_sol, 0);
+  // const totalTrades = candles.reduce((s, c) => s + c.trades, 0);
+  // const volUsd = totalVolSol * solPrice;
 
   return (
     <div className="h-14 bg-[#12161a] border-b border-[#2a2e39] flex items-center px-4 gap-6 shrink-0">
@@ -188,7 +188,7 @@ export default function TokenInfoBar({
           Trades&nbsp;
           <span className="text-[#d1d4dc]">{fmtNum(totalTrades)}</span>
         </div>
-      </div>
+      </div> */}
       {mcap > 0 && (
         <>
           <div className="border-l border-[#2a2e39] h-8 mx-1" />
@@ -197,7 +197,7 @@ export default function TokenInfoBar({
             <div className="text-[#d1d4dc]">${fmtNum(mcap)}</div>
           </div>
         </>
-      )} */}
+      )}
     </div>
   );
 }

@@ -74,6 +74,15 @@ const OHLCVChart = forwardRef<OHLCVChartRef, Props>(function OHLCVChart(
     scrollRight: () => handleScroll(5),
     resetView: () => {
       isInitialSetRef.current = false;
+      const timeScale = priceChartRef.current?.timeScale();
+      if (timeScale) {
+        timeScale.applyOptions({
+          barSpacing: 15, // Reset to standard professional width
+          rightOffset: 6, // Keep right padding space
+        });
+        timeScale.scrollToRealTime(); // Scroll to the very end of the data (latest candles)
+      }
+      onRefresh?.(); // Trigger the API reload of historical candle data
     },
   }));
 
